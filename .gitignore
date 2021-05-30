@@ -127,5 +127,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-
 .vscode
+
+clean_audio
+raw_audio
+manifests
