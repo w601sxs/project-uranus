@@ -44,6 +44,7 @@ class NumpyAudioFrame(object):
             return "Frame --> Shape: {}".format(self.dim)
 
 def fetch_audio_info(url):
+    """generate the audio information manifest for the target atc stream"""
 
     logging.info('Getting stream information ...')
     try:
@@ -70,6 +71,8 @@ def fetch_audio_info(url):
     return AudioInfo(url, stream, channels, samplerate)
 
 def callback(outdata, frames, time, status):
+    """call back function used for ffmpeg"""
+
     global q
     if status.output_underflow:
         logging.info(f'Output underflow: increase blocksize? (Current: {frames})')
@@ -83,8 +86,26 @@ def callback(outdata, frames, time, status):
     assert len(data) == len(outdata)
     outdata[:] = data
 
-def listener_main(url, device=None, blocksize=1024, buffersize=20, 
-                  retain=5, raw_audio_dir=None, manifest_dir=None):
+def listener_main(url:str, device:str=None, blocksize:int=1024, 
+                  buffersize:int=20, retain:int=5, 
+                  raw_audio_dir:str=None, manifest_dir:str=None):
+    """listen to atc stream, save the useful audio snippet to raw_audio_dir
+    and generate the manifest file save to manifest_dir
+
+    Args:
+        url (str): [description]
+        device (str, optional): [description]. Defaults to None.
+        blocksize (int, optional): [description]. Defaults to 1024.
+        buffersize (int, optional): [description]. Defaults to 20.
+        retain (int, optional): [description]. Defaults to 5.
+        raw_audio_dir (str, optional): [description]. Defaults to None.
+        manifest_dir (str, optional): [description]. Defaults to None.
+
+    Raises:
+        e: [description]
+        e: [description]
+        e: [description]
+    """
 
     raw_audio_dir = raw_audio_dir or "./raw_audio"
     manifest_dir = manifest_dir or "./manifests"
@@ -146,10 +167,11 @@ def listener_main(url, device=None, blocksize=1024, buffersize=20,
                 q.put(metablock, timeout=timeout)
     except KeyboardInterrupt:
         logging.info('Terminated due to Interrupted by user')
-        sys.exit(1)
-    except queue.Full:
+        sys.exit(0)
+    except queue.Full as e:
         # A timeout occurred, i.e. there was an error in the callback
-        logging.info("Termindated due to error in CallBack")
+        logging.error("Termindated due to error in CallBack")
+        raise e
     except Exception as e:
         raise e
 
