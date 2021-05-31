@@ -22,45 +22,62 @@ def meta_convert(input_fpath, output_fpath, channel, samplerate, format="f32le")
         output_fpath
     ).run()
     logging.info(f"Completed convert {input_fpath} >> {output_fpath}")
+    return
 
-def convert_rawfile_main(manifest_dir, raw_audio_dir, export_audio_dir, hold_sec=3):
+def acquire_manifest_files(manifest_dir):
     manifest_dict_collection = {}
     for fname in os.listdir(manifest_dir):
         manifest_path = os.path.join(manifest_dir, fname)
         with open(manifest_path, mode="r") as f:
             manifest_dict = json.load(f)
         manifest_dict_collection[manifest_dict["flag"]] = manifest_dict
-    logging.info(f"Acquired {len(manifest_dict_collection)} manifest files ...")
-    logging.info("Start convert raw audio files")
 
+    return manifest_dict_collection
+
+def convert_rawfiles(manifest_dict_collection, convert_fname_list, raw_audio_dir, export_audio_dir, expected_format=".mp3"):
+    
+    logging.info("Start convert raw audio files ...")
+    for fname in convert_fname_list:
+        input_path = os.path.join(raw_audio_dir, fname)
+        output_path = os.path.join(
+            export_audio_dir, 
+            fname.replace(".raw", expected_format)
+        )
+        input_flag = fname.split("-")[0]
+        meta_convert(
+            input_fpath=input_path,
+            output_fpath=output_path,
+            channel=manifest_dict_collection[input_flag]["channels"],
+            samplerate=manifest_dict_collection[input_flag]["samplerate"]
+        )
+        os.remove(input_path)
+    return
+
+def convert_rawfile_main(manifest_dir, raw_audio_dir, export_audio_dir, hold_sec=3, expected_format=".mp3"):
     try:
         while True:
-            remain_files = [
-                fname for fname in os.listdir(raw_audio_dir) if ".raw" in fname
-            ]
-            if len(remain_files) == 0:
-                time.sleep(hold_sec)
-                logging.info(f"Converted process onhold {hold_sec}s")
-            else:
-                for fname in remain_files:
-                    input_path = os.path.join(raw_audio_dir, fname)
-                    output_path = os.path.join(
+            manifest_dict_collection = acquire_manifest_files(manifest_dir)
+            if len(manifest_dict_collection) > 0:
+                convert_fnamelist = [
+                    fname for fname in os.listdir(raw_audio_dir) if ".raw" in fname
+                ]
+                if len(convert_fnamelist) > 0:
+                    convert_rawfiles(
+                        manifest_dict_collection, 
+                        convert_fnamelist, 
+                        raw_audio_dir, 
                         export_audio_dir, 
-                        fname.replace(".raw", ".mp3")
+                        expected_format
                     )
-                    input_flag = fname.split("-")[0]
-                    meta_convert(
-                        input_fpath=input_path,
-                        output_fpath=output_path,
-                        channel=manifest_dict_collection[input_flag]["channels"],
-                        samplerate=manifest_dict_collection[input_flag]["samplerate"]
-                    )
-                    os.remove(input_path)
-    except KeyboardInterrupt:
-        logging.info('Terminated due to Interrupted by user')
-        sys.exit(0)
+                    logging.info(f"Next round of converting in {hold_sec} second(s) ...")
+                else:
+                    logging.info(f"No raw files found, recheck in {hold_sec} second(s)...")
+                time.sleep(hold_sec)
     except Exception as e:
+        logging.error("Convert process terminated due to Exception...")
         raise e
+
+
     
 
 
