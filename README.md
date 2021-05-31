@@ -42,9 +42,6 @@ python stream_finder.py
 |kdaa2_twr          |http://d.liveatc.net/kdaa2_twr          |KDAA/KADW Tower                   |US-Class-B|KDAA 311956Z AUTO 02004KT 10SM CLR 24/08 A3025 RMK AO2 SLP246 T02360084 $           |Camp Springs, Maryland, United States|2021-05-31 20:15:13 UTC|
 |kapa2_app          |http://d.liveatc.net/kapa2_app          |KAPA App/Dep                      |US-Class-B|KAPA 311953Z 36003KT 10SM SCT018 BKN047 BKN075 14/07 A3029 RMK AO2 SLP232 T01390072 |Denver, Colorado, United States      |2021-05-31 20:15:13 UTC|
 
-
-```
-
 ## TODO
 - Dispatch Large Scale Listener to (10 airports maybe)?
   - Need to isolate the output from each other, or we do docker run, not sure what's the plan yet
