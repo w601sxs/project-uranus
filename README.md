@@ -11,7 +11,7 @@ This repo is design for discover and record all LiveATC streams, which sources f
 ## Requirement
 To do this, you need to install the following package
 - `python-ffmpeg`
-
+- `lxml`
 ## Usage
 
 ### Record Raw Audio
@@ -24,3 +24,15 @@ Change parameter in `converter.py` and then run it to convert the fetched raw au
 ```bash
 python converter.py
 ```
+
+### Fetch the latest streaming list
+Simply do the following
+```bash
+python stream_finder.py
+```
+
+## TODO
+- Dispatch Large Scale Listener to (10 airports maybe)?
+  - Need to isolate the output from each other, or we do docker run, not sure what's the plan yet
+- Use database to manage the audio information
+- Perhaps attach to a Cloud (AWS)?
