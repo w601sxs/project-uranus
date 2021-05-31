@@ -1,5 +1,4 @@
 import ffmpeg
-import queue
 import sys
 import os
 import datetime
