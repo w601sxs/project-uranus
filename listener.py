@@ -1,7 +1,7 @@
 import ffmpeg
 import sys
 import os
-# import subprocess
+import subprocess
 import json
 import numpy as np
 import logging
@@ -12,7 +12,6 @@ logging.basicConfig(
     format='[%(asctime)s] > %(filename)s:%(funcName)s >> %(message)s',
     datefmt='%Y-%m-%d:%H:%M:%S'
 )
-
 class NumpyAudioFrame(object):
     def __init__(self, frame_vector, prec=4):
         self.frame_vector = frame_vector
