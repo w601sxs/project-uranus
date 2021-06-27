@@ -129,6 +129,4 @@ dmypy.json
 .pyre/
 .vscode
 
-clean_audio
-raw_audio
-manifests
+data

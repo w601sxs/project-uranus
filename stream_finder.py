@@ -4,6 +4,7 @@ import datetime
 import pandas as pd
 import logging
 import urllib.request as urlrequest
+import argparse
 
 logging.basicConfig(
     level=logging.INFO, 
@@ -63,7 +64,6 @@ def fetch_main(export_path=None):
         ] = None
 
         stream_info_df = stream_info_df.set_index("flag")
-
         stream_df_collection[category] = stream_info_df
 
     stream_final_df = pd.concat([meta_df for meta_df in stream_df_collection.values()])
@@ -71,7 +71,16 @@ def fetch_main(export_path=None):
     if export_path is not None:
         os.makedirs(os.path.dirname(export_path), exist_ok=True)
         logging.info(f"Create/Update Stream Info to: {export_path}")
-        stream_final_df.to_csv(export_path)
+        stream_final_df.to_json(export_path, orient="records", indent=2)
 
 if __name__ == "__main__":
-    fetch_main("./stream_info.csv")
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-e", "--export_path", 
+        help="Export Stream Information Path", 
+        type=str,
+        default="./data/stream_info/stream_info.json"
+    )
+
+    args, _ = parser.parse_known_args()
+    fetch_main(args.export_path)
