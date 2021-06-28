@@ -158,10 +158,13 @@ def listen_main(url:str, blocksize:int=1024, retain:int=5, data_dir:str=None):
             if retain_cnt > 0:
                 if np_block.retain >= 0:
                     logging.info(f"[{pid}] Capture {np_block_info}, Fetch Next Frame ({retain_cnt})")
-                    retain_cnt -= 1
                     capture_seq += metablock
+                    if np_block.dim[0] == blocksize:
+                        retain_cnt -= 1
+                    else:
+                        logging.debug(f"[{pid}] Skip counting the incomplete frame, Fetch Next Frame ({retain_cnt})")
                 else:
-                    logging.debug(f"[{pid}] Drop bad frame, Fetch Next Frame ({retain_cnt})")
+                    logging.debug(f"[{pid}] Skip counting, Fetch Next Frame ({retain_cnt})")
             elif retain_cnt == 0:
                 time_str = datetime.datetime.now().strftime(format="%Y%m%d-%H%M%S")
                 export_audio_path = os.path.join(raw_audio_dir, f"{audio_stream.flag}-{time_str}.raw")

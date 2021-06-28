@@ -3,6 +3,7 @@ name: liveatc
 dependencies:
   - python=3.9
   - conda-forge::ffmpeg-python
+  - conda-forge::metaflow
   - pandas
   - numpy
   - lxml
