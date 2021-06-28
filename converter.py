@@ -84,9 +84,9 @@ def convert_rawfile_main(manifest_dir, raw_audio_dir, export_audio_dir, hold_sec
 if __name__ == "__main__":
 
     convert_rawfile_main(
-        "./manifests",
-        "./raw_audio",
-        "./clean_audio"
+        "./data/manifests",
+        "./data/raw_audio",
+        "./data/clean_audio"
     )
 
     # meta_convert(
