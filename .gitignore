@@ -129,4 +129,7 @@ dmypy.json
 .pyre/
 .vscode
 
+# Folder specifically to exclude
 data
+tmp
+.metaflow
