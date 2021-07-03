@@ -71,7 +71,7 @@ class AudioCrawlingFLow(FlowSpec):
     @step
     def deploy_listerners(self):
         if self.back_door is True:
-            self.use_agents = self.stream_info_records[:3]
+            self.use_agents = self.stream_info_records[:5]
         else:
             self.use_agents = self.stream_info_records
         if self.dry_run is True:
@@ -99,7 +99,7 @@ class AudioCrawlingFLow(FlowSpec):
         self.flag = self.url.split("/")[-1]
         print(f"[{self.flag}] Listener targeting on URL: {self.url}")
         if self.back_door == True:
-            listener_runtime = 120
+            listener_runtime = 3600
         else:
             listener_runtime = self.listener_runtime
         try:

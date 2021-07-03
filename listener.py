@@ -59,7 +59,7 @@ def deploy_listener_main(url, probe, flag, data_dir, runtime):
     end_time_stamp = end_time.strftime("%Y%m%d%H%M%S%f")[:-3]
     duration_time_stamp = str(duration)
     raw_audio_path = os.path.join(
-    raw_audio_dir, 
+        raw_audio_dir, 
         f"{audio_stream.flag}-{start_time_stamp}-{end_time_stamp}.mp3"
     )
     cmd = " ".join(
