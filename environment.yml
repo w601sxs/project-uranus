@@ -4,6 +4,8 @@ dependencies:
   - python=3.9
   - conda-forge::ffmpeg-python
   - conda-forge::metaflow
+  - conda-forge::pydub
+  - matplotlib
   - pandas
   - numpy
   - lxml
