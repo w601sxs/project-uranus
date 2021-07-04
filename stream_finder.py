@@ -62,7 +62,7 @@ def crawl_stream_info(stream_info_export_path):
         os.makedirs(os.path.dirname(stream_info_export_path), exist_ok=True)
         print(f"Create/Update Stream Info to: {stream_info_export_path}")
         stream_final_df.to_json(stream_info_export_path, orient="records", indent=2)
-        stream_final_dict = json.loads(stream_final_df.to_json(stream_info_export_path, orient="records", indent=2))
+        stream_final_dict = json.loads(stream_final_df.to_json(orient="records", indent=2))
         return stream_final_dict
     else:
         return
