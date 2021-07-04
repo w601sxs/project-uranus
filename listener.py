@@ -34,12 +34,12 @@ class AudioStream(object):
             "channels": self.channels,
             "samplerate": self.samplerate
         }
-        print(f"Acquired Stream Info: {display_info}")
+        print(f"[{self.flag}] Acquired Stream Info: {display_info}")
         return 
         
     def save_manifest_file(self, manifest_dir):
         manifest_fpath = os.path.join(manifest_dir, f"{self.flag}.json")
-        print(f"Save Manifest File to {manifest_fpath}")
+        print(f"[{self.flag}] Save Manifest File to {manifest_fpath}")
         os.makedirs(os.path.dirname(manifest_fpath), exist_ok=True)
         with open(manifest_fpath, mode="w") as f:
             json.dump(self.__dict__, f, indent=2)
@@ -49,18 +49,16 @@ def deploy_listener_main(url, probe, flag, data_dir, runtime):
     manifest_dir = os.path.join(data_dir, "manifests")
     raw_audio_dir = os.path.join(data_dir, "raw_audio")
 
-    print(f'Deploy ffmpeg probe on URL: {url}')
+    print(f'[{flag}] Deploy ffmpeg probe on URL: {url}')
     audio_stream = AudioStream(url, flag, probe)
     audio_stream.save_manifest_file(manifest_dir)
     current_time = datetime.datetime.now()
     duration = datetime.timedelta(seconds=runtime)
-    end_time = current_time + duration
     start_time_stamp = current_time.strftime("%Y%m%d%H%M%S%f")[:-3]
-    end_time_stamp = end_time.strftime("%Y%m%d%H%M%S%f")[:-3]
     duration_time_stamp = str(duration)
     raw_audio_path = os.path.join(
         raw_audio_dir, 
-        f"{audio_stream.flag}-{start_time_stamp}-{end_time_stamp}.mp3"
+        f"{audio_stream.flag}-{start_time_stamp}.mp3"
     )
     cmd = " ".join(
         [
@@ -74,7 +72,7 @@ def deploy_listener_main(url, probe, flag, data_dir, runtime):
         ]
     )
     try:
-        print(f"... Execute {cmd}")
+        print(f"[{audio_stream.flag}] Execute {cmd}")
         subprocess.check_output(cmd, shell=True)
     except Exception as e:
         print(f"[{audio_stream.flag}] Terminated due to exception {e}")
