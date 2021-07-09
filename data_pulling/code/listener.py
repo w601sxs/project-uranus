@@ -1,7 +1,9 @@
 import os
 import datetime
-import subprocess
+from subprocess import Popen
+from psutils import pid_exists
 import json
+import time
 
 class AudioStream(object):
     def __init__(self, url, flag, probe):
@@ -73,7 +75,15 @@ def deploy_listener_main(url, probe, flag, data_dir, runtime):
     )
     try:
         print(f"[{audio_stream.flag}] Execute {cmd}")
-        subprocess.check_output(cmd, shell=True)
+        pid = Popen(cmd, shell=True)
+        start_time = time.time()
+        while True:
+            if pid_exists(pid):
+                checkpoint_time = time.time()
+                print(f"Process Still Running ({checkpoint_time - start_time:.1f})s")
+            else:
+                print("Process Terminated")
+                break
     except Exception as e:
         print(f"[{audio_stream.flag}] Terminated due to exception {e}")
     finally:

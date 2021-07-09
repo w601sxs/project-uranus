@@ -1,0 +1,17 @@
+Description: Project Resources
+Parameters:
+  ResourcePrefix:
+    Description: Name Prefix for all the resources
+    Type: String
+    Default: liveatc-flight-sonar
+Resources:
+  ProjectBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub '${ResourcePrefix}-main-bucket'
+  ProjectDataPullingECR:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub '${ResourcePrefix}-data-pulling-image'
+      

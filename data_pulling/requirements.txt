@@ -1,0 +1,6 @@
+ffmpeg-python
+pydub
+pandas
+numpy
+lxml
+psutil
