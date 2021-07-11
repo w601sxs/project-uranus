@@ -19,7 +19,7 @@ import logging
 
 logging.basicConfig(
      level=logging.INFO, 
-     format= '[%(asctime)s] >> %(funcName)s:%(levelname)s >> %(message)s',
+     format= '%(asctime)s > %(funcName)s:%(levelname)s >> %(message)s',
      datefmt='%Y-%m-%d %H:%M:%S %Z'
  )
 
@@ -59,7 +59,7 @@ async def deploy_listener(audio_stream, session_runtime=300, run_interval=60, ra
                 pid = sub_process.pid
                 await asyncio.sleep(0.01)
     except BaseException as e:
-        logging.info(f"[{audio_stream.flag}] Terminate this process due to exception {e}")
+        logging.warning(f"[{audio_stream.flag}] Terminate this process due to exception {e}")
         return
 
 async def deploy_converter(raw_audio_dir, processed_audio_dir, run_interval=60, min_silence_len=500, silence_thresh=-40, extend=10):
@@ -95,12 +95,15 @@ async def deploy_converter(raw_audio_dir, processed_audio_dir, run_interval=60, 
                 except Exception as e:
                      logging.error(f"[stream converter] Failed to convert due to exception {e}")
                 finally:
+                    raw_audio_file = None
+                    offset_lists = None
+                    chunk = None
                     os.remove(raw_audio_path)
                     await asyncio.sleep(0.01)
             logging.info(f"[stream converter] Process finished, next rerun in {run_interval}s")
             await asyncio.sleep(run_interval)
     except BaseException as e:
-        logging.info(f"[stream converter] Terminate this process due to exception {e}")
+        logging.warning(f"[stream converter] Terminate this process due to exception {e}")
         return
 
 async def s3_upload(processed_audio_dir, s3_processed_audio_dir, profile=None, run_interval=60):
@@ -124,10 +127,12 @@ async def s3_upload(processed_audio_dir, s3_processed_audio_dir, profile=None, r
             logging.info(f"[stream converter] Process finished, next rerun in {run_interval}s")
             await asyncio.sleep(run_interval)
     except ClientError as e:
-        logging.info(f"[s3 uploader] terminated process due to client error {e}")
+        logging.error(f"[s3 uploader] terminated process due to client error {e}")
     except BaseException as e:
-        logging.info(f"[s3 uploader] terminated process due to exception {e}")
+        logging.warning(f"[s3 uploader] terminated process due to exception {e}")
     finally:
+        s3_client = None
+        session = None
         return
 
 async def main_procedure(data_dir, tryrun=None, flag_cond=None, run_interval=60, 
@@ -152,10 +157,10 @@ converter_rerun_interval=100, listener_session_runtime=600, s3_processed_audio_d
             streams = [AudioStream(item["stream_link"]) for item in stream_info_raw]
             if flag_cond is not None:
                 streams = [item for item in streams if flag_cond in item.flag]
-                logging.info(f"[main] Filtered flag includes {flag_cond}, total {len(streams)} streams")
+                logging.warning(f"[main] Filtered flag includes {flag_cond}, total {len(streams)} streams")
             if tryrun is not None:
                 streams = streams[:tryrun]
-                logging.info(f"[main] Try run: {len(streams)} streams")
+                logging.warning(f"[main] Try run: {len(streams)} streams")
             tasks = [
                 deploy_converter(
                     raw_audio_dir, processed_audio_dir, 
