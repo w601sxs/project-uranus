@@ -1,8 +1,17 @@
 version: '3'
 
 services:
-  data_engine:
-    build: ./data_engine
-    entrypoint: /code/stream_finder.py
+  main:
+    build: .
+    entrypoint: /code/main.py
     volumes:
-      - ../data:/data
+      - ../data:/data:Z
+      - $HOME/.aws:/root/.aws/:ro
+    environment: 
+      - DATA_DIR=/data
+      - FLAG_COND=kbos
+      - RUN_INTERVAL=60
+      - CONVERTER_RUN_INTERVAL=100
+      - LISTENER_SESSION_RUNTIME=120
+      - S3_PROCESSED_AUDIO_DIR=s3://project-uranus/processed_audios/
+      - AWS_PROFILE=ruyyi

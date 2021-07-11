@@ -3,8 +3,7 @@
 import ffmpeg
 import os
 import datetime
-import subprocess
-import json
+import logging
 
 class AudioStream(object):
     def __init__(self, url, flag=None):
@@ -25,7 +24,7 @@ class AudioStream(object):
             "channels": self.channels,
             "samplerate": self.samplerate
         }
-        print(f"[{self.flag}] Acquired Stream Info: {display_info}")
+        logging.info(f"[{self.flag}] Acquired Stream Info: {display_info}")
         return
 
     def get_probe(self):
@@ -34,9 +33,9 @@ class AudioStream(object):
                 self.url, loglevel='error'
             )
         except ffmpeg.Error as e:
-            print(f"[{self.flag}] Stream <{self.url}> is not available due to Exception: {e.stderr}")
+            logging.info(f"[{self.flag}] Stream <{self.url}> is not available due to Exception: {e.stderr}")
         except BaseException as e:
-            print(f"[{self.flag}] Stream <{self.url}> is not available due to Exception: {e}")
+            logging.info(f"[{self.flag}] Stream <{self.url}> is not available due to Exception: {e}")
         else:
             self.probe = probe
             streams = self.probe.get("streams", [])

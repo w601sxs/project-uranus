@@ -6,6 +6,7 @@ import datetime
 import pandas as pd
 import json
 import urllib.request as urlrequest
+import logging
 
 def get_flag(pls_link):
     return pls_link.strip("/play/").split(".")[0]
@@ -25,10 +26,10 @@ _url_dict = {
 
 def crawl_stream_info(stream_info_export_path):
     stream_df_collection = {}
-    print(f"[stream finder] Start Fetching Stream Information")
+    logging.info(f"[stream finder] Start Fetching Stream Information")
     for category, url in _url_dict.items():
         page = urlrequest.urlopen(url).read()
-        print(f"[stream finder] Parsed URL: {url}")
+        logging.info(f"[stream finder] Parsed URL: {url}")
         html = etree.HTML(page)
         available_href = [item.attrib["href"]
             for item in html.xpath("//table[@bgcolor='#EEEEEE']//td[@bgcolor='lightgreen']//a[contains(@href, '/play/')]")
@@ -42,7 +43,7 @@ def crawl_stream_info(stream_info_export_path):
         available_loc = [texts[2] for texts in available_texts]
         available_metar = [texts[11] for texts in available_texts]
         assert len(available_links) == len(available_texts)
-        print(f"[stream finder] Fetched {len(available_links)} Links through URL: {url}")
+        logging.info(f"[stream finder] Fetched {len(available_links)} Links through URL: {url}")
         stream_info_df = [
             {"flag": flag, "stream_link": url, "abstract": abstract, "category": category, "metar": metar, "location": loc}
             for flag, url, abstract, metar, loc in zip(available_flags, available_links, available_abstract, available_metar, available_loc)
@@ -64,7 +65,7 @@ def crawl_stream_info(stream_info_export_path):
     if stream_info_export_path is not None:
         os.makedirs(os.path.dirname(stream_info_export_path), exist_ok=True)
         stream_final_df.to_json(stream_info_export_path, indent=2, orient="records")
-        print(f"[stream finder] Create/Update Stream Info to: {stream_info_export_path}")
+        logging.info(f"[stream finder] Create/Update Stream Info to: {stream_info_export_path}")
     return
 
 if __name__ == "__main__":
@@ -76,5 +77,5 @@ if __name__ == "__main__":
     if OVERWRITE is True or not os.path.exists(STREAM_INFO_PATH):
         crawl_stream_info(STREAM_INFO_PATH)
     else:
-        print("[stream finder] Found existing stream info and no overwriting specified, Skip ...")
+        logging.info("[stream finder] Found existing stream info and no overwriting specified, Skip ...")
         

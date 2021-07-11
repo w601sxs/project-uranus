@@ -4,3 +4,5 @@ pandas
 numpy
 lxml
 psutil
+boto3
+botocore
