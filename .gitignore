@@ -136,3 +136,4 @@ tmp
 *.ipynb
 data_engine/docker-compose.yml
 *setup.sh
+deploy_aws
