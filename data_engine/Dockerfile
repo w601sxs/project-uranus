@@ -27,8 +27,14 @@ RUN echo ffmpeg -version
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
+RUN mkdir -p "/data/stream_info"
+RUN mkdir -p "/data/raw_audio"
+RUN mkdir -p "/data/processed_audio"
+RUN mkdir -p "/data/manifests"
+RUN chmod -R +x "/data/"
+
 FROM builder
 
-COPY code ./code
-RUN chmod +x ./code
+COPY code "/code"
+RUN chmod -R +x "/code/"
 

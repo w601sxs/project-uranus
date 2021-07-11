@@ -14,4 +14,16 @@ Resources:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: !Sub '${ResourcePrefix}-data-pulling-image'
-      
+  StreamFinderLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref 'ProjectBucket'
+        S3Key: infrastructure/lambdas/source_finder.zip
+      Description: find out the available streams in liveATC
+      FunctionName: !Sub "${ResourcePrefix}-streamfinder"
+      Handler: stream_finder.lambda_handler
+      MemorySize: 1024
+      Role: !Ref 'ServiceExecutionRoleArn'
+      Runtime: python3.8
+      Timeout: 60

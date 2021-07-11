@@ -1,0 +1,8 @@
+version: '3'
+
+services:
+  data_engine:
+    build: ./data_engine
+    entrypoint: /code/stream_finder.py
+    volumes:
+      - ../data:/data
