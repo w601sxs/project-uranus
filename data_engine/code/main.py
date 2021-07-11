@@ -57,7 +57,7 @@ async def deploy_listener(audio_stream, session_runtime=300, run_interval=60, ra
                 cmd = audio_stream.get_record_cmd(runtime=session_runtime, export_dir=raw_audio_dir)
                 sub_process = subprocess.Popen(cmd, shell=True)
                 pid = sub_process.pid
-                await asyncio.sleep(0)
+                await asyncio.sleep(0.01)
     except BaseException as e:
         logging.info(f"[{audio_stream.flag}] Terminate this process due to exception {e}")
         return
@@ -117,7 +117,7 @@ async def s3_upload(processed_audio_dir, s3_processed_audio_dir, profile=None, r
                 parsed_s3_path = urlparse(s3_path)
                 bucket = parsed_s3_path.netloc
                 key = parsed_s3_path.path.lstrip("/")
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.01)
                 s3_client.upload_file(source_path, bucket, key)
                 logging.info(f"[s3 uploader] uploaded file {fname}")
                 os.remove(source_path)
