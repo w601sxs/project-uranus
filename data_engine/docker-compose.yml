@@ -12,6 +12,6 @@ services:
       - FLAG_COND=kbos
       - RUN_INTERVAL=60
       - CONVERTER_RUN_INTERVAL=100
-      - LISTENER_SESSION_RUNTIME=120
+      - LISTENER_SESSION_RUNTIME=600
       - S3_PROCESSED_AUDIO_DIR=s3://project-uranus/processed_audios/
       - AWS_PROFILE=ruyyi

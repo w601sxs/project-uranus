@@ -71,28 +71,32 @@ async def deploy_converter(raw_audio_dir, processed_audio_dir, run_interval=60, 
             raw_audio_paths = [os.path.join(raw_audio_dir, fname) for fname in raw_audio_names]
             logging.info(f"[stream converter] found {len(raw_audio_names)} files qualified to be converted")
             for raw_audio_name, raw_audio_path in zip(raw_audio_names, raw_audio_paths):
-                if os.path.exists(raw_audio_path):
-                    raw_audio_file = pydub.AudioSegment.from_mp3(raw_audio_path)
-                    await asyncio.sleep(2)
-                    offset_lists = pydub.silence.detect_nonsilent(
-                        raw_audio_file,
-                        min_silence_len=min_silence_len,
-                        silence_thresh=silence_thresh
-                    )
-                    await asyncio.sleep(2)
-                    for (start_offset, end_offset) in offset_lists:
-                        rec_start_offset = max(start_offset-extend, 0)
-                        rec_end_offset = min(end_offset+extend, len(raw_audio_file))
-                        chunk = raw_audio_file[rec_start_offset:rec_end_offset]
-                        offset_str = f"{rec_start_offset}-{rec_end_offset}"
-                        export_filename = os.path.join(
-                            processed_audio_dir,
-                            raw_audio_name.replace(".mp3", f"-{offset_str}.mp3")
+                try:
+                    if os.path.exists(raw_audio_path):
+                        raw_audio_file = pydub.AudioSegment.from_mp3(raw_audio_path)
+                        await asyncio.sleep(2)
+                        offset_lists = pydub.silence.detect_nonsilent(
+                            raw_audio_file,
+                            min_silence_len=min_silence_len,
+                            silence_thresh=silence_thresh
                         )
-                        logging.info(f"[stream converter] converted and exported sound slice {export_filename}")
-                        chunk.export(export_filename, format="mp3")
-                    await asyncio.sleep(2)
+                        await asyncio.sleep(2)
+                        for (start_offset, end_offset) in offset_lists:
+                            rec_start_offset = max(start_offset-extend, 0)
+                            rec_end_offset = min(end_offset+extend, len(raw_audio_file))
+                            chunk = raw_audio_file[rec_start_offset:rec_end_offset]
+                            offset_str = f"{rec_start_offset}-{rec_end_offset}"
+                            export_filename = os.path.join(
+                                processed_audio_dir,
+                                raw_audio_name.replace(".mp3", f"-{offset_str}.mp3")
+                            )
+                            logging.info(f"[stream converter] converted and exported sound slice {export_filename}")
+                            chunk.export(export_filename, format="mp3")
+                except Exception as e:
+                     logging.error(f"[stream converter] Failed to convert due to exception {e}")
+                finally:
                     os.remove(raw_audio_path)
+                    await asyncio.sleep(0.01)
             logging.info(f"[stream converter] Process finished, next rerun in {run_interval}s")
             await asyncio.sleep(run_interval)
     except BaseException as e:
@@ -115,7 +119,7 @@ async def s3_upload(processed_audio_dir, s3_processed_audio_dir, profile=None, r
                 key = parsed_s3_path.path.lstrip("/")
                 await asyncio.sleep(0.1)
                 s3_client.upload_file(source_path, bucket, key)
-                logging.info(f"[s3 uploader] uploaded file {source_path} --> {s3_path}")
+                logging.info(f"[s3 uploader] uploaded file {fname}")
                 os.remove(source_path)
             logging.info(f"[stream converter] Process finished, next rerun in {run_interval}s")
             await asyncio.sleep(run_interval)
@@ -137,7 +141,10 @@ converter_rerun_interval=100, listener_session_runtime=600, s3_processed_audio_d
     for directory in [raw_audio_dir, processed_audio_dir, stream_info_dir]:
         os.makedirs(directory, exist_ok=True)
 
+    # initiate stream info
     crawl_stream_info(stream_info_path)
+
+    # main loop start
     try:
         with open(stream_info_path, mode="r") as f:
             stream_info_raw = json.load(f)
