@@ -1,12 +1,12 @@
 #!/bin/bash
 
 ACCOUNT_ID="259046265119"
-RESOURCE_PREFIX="liveatc-flight-sonar"
+RESOURCE_PREFIX="project-uranus"
 REGION="us-east-1"
 
 aws cloudformation deploy \
---stack-name "liveatc-resources-main" \
---template-file "aws_deployment/cloudformation/project_resources.yml" \
+--stack-name "$RESOURCE_PREFIX-stack" \
+--template-file "deploy_aws/cloudformation/project_resources.yml" \
 --parameter-overrides "ResourcePrefix=$RESOURCE_PREFIX" \
 --tags "ProjectName=$RESOURCE_PREFIX"
 
