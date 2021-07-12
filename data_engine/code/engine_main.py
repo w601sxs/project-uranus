@@ -7,14 +7,8 @@ import psutil
 import subprocess
 from stream_recorder import AudioStream
 from stream_finder import crawl_stream_info
-from ast import literal_eval
 import time
 import json
-import datetime
-import pydub
-import boto3
-from urllib.parse import urlparse
-from botocore.exceptions import ClientError
 import logging
 
 logging.basicConfig(
@@ -23,29 +17,7 @@ logging.basicConfig(
      datefmt='%Y-%m-%d %H:%M:%S %Z'
  )
 
-_timestamp_fmt = "%Y%m%d%H%M%S%f"
 _asyncio_short_waittime = 0.01
-
-def parse_file_name(filename):
-    pieces = filename.rstrip(".mp3").split("-")
-    start_time_stamp = pieces[-2]
-    end_time_stamp = pieces[-1]
-    start_time = datetime.datetime.strptime(start_time_stamp, _timestamp_fmt)
-    end_time = datetime.datetime.strptime(end_time_stamp, _timestamp_fmt)
-    return {
-        "file_name": filename,
-        "start_time_stamp": start_time_stamp,
-        "end_time_stamp": end_time_stamp,
-        "start_time": start_time, 
-        "end_time": end_time
-    }
-
-def file_timestamp_beyond_current(end_time, current_time=None):
-    current_time = current_time or datetime.datetime.now()
-    if end_time > current_time:
-        return False
-    else:
-        return True
 
 async def deploy_listener(audio_stream, session_runtime=300, run_interval=60, raw_audio_dir=None):
     pid = None
@@ -77,103 +49,14 @@ async def deploy_listener(audio_stream, session_runtime=300, run_interval=60, ra
         logging.warning(f"[{audio_stream.flag}] Terminate this process due to exception {e}")
         return
 
-async def deploy_converter(raw_audio_dir, processed_audio_dir, run_interval=60, min_silence_len=500, silence_thresh=-40, extend=10):
-    try:
-        while True:
-            logging.info(f"[stream converter] Converter start")
-            current_time = datetime.datetime.now()
-            raw_audio_infos = [
-                parse_file_name(fname) 
-                for fname in os.listdir(raw_audio_dir)
-            ]
-            available_audio_infos = [
-                info_dict
-                for info_dict in raw_audio_infos
-                if file_timestamp_beyond_current(info_dict["end_time"], current_time)
-            ]
-            available_fpaths = [
-                os.path.join(raw_audio_dir, info_dict["file_name"]) 
-                for info_dict in available_audio_infos
-            ]
-            logging.info(f"[stream converter] found {len(available_audio_infos)} files qualified to be converted")
-            for info_dict, audio_path in zip(available_audio_infos, available_fpaths):
-                try:
-                    if os.path.exists(audio_path):
-                        raw_audio_file = pydub.AudioSegment.from_mp3(audio_path)
-                        sub_export_dir = datetime.datetime.strftime(info_dict["end_time"], "%Y-%m-%d-%H")
-                        await asyncio.sleep(_asyncio_short_waittime)
-                        offset_lists = pydub.silence.detect_nonsilent(
-                            raw_audio_file,
-                            min_silence_len=min_silence_len,
-                            silence_thresh=silence_thresh
-                        )
-                        await asyncio.sleep(_asyncio_short_waittime)
-                        for (start_offset, end_offset) in offset_lists:
-                            rec_start_offset = max(start_offset-extend, 0)
-                            rec_end_offset = min(end_offset+extend, len(raw_audio_file))
-                            chunk = raw_audio_file[rec_start_offset:rec_end_offset]
-                            offset_str = f"{rec_start_offset}-{rec_end_offset}"
-                            export_filepath = os.path.join(
-                                processed_audio_dir, 
-                                sub_export_dir,
-                                info_dict["file_name"].replace(".mp3", f"-{offset_str}.mp3")
-                            )
-                            export_dirname = os.path.dirname(export_filepath)
-                            os.makedirs(export_dirname, exist_ok=True)
-                            logging.info(f"[stream converter] converted and exported sound slice {export_filepath}")
-                            chunk.export(export_filepath, format="mp3")
-                except Exception as e:
-                     logging.error(f"[stream converter] Failed to convert due to exception {e}")
-                finally:
-                    raw_audio_file = None
-                    offset_lists = None
-                    chunk = None
-                    os.remove(audio_path)
-                    await asyncio.sleep(_asyncio_short_waittime)
-            logging.info(f"[stream converter] Process finished, next rerun in {run_interval}s")
-            await asyncio.sleep(run_interval)
-    except BaseException as e:
-        logging.warning(f"[stream converter] Terminate this process due to exception {e}")
-        return
-
-async def s3_upload(processed_audio_dir, s3_processed_audio_dir, profile=None, run_interval=60):
-    try:
-        while True:
-            if profile is not None:
-                session = boto3.Session()
-            else:
-                session = boto3.Session(profile_name=profile)
-            s3_client = session.client("s3")
-            for fname in os.listdir(processed_audio_dir):
-                source_path = os.path.join(processed_audio_dir, fname)
-                s3_path = os.path.join(s3_processed_audio_dir, fname)
-                parsed_s3_path = urlparse(s3_path)
-                bucket = parsed_s3_path.netloc
-                key = parsed_s3_path.path.lstrip("/")
-                await asyncio.sleep(_asyncio_short_waittime)
-                s3_client.upload_file(source_path, bucket, key)
-                logging.info(f"[s3 uploader] uploaded file {fname}")
-                os.remove(source_path)
-            logging.info(f"[stream converter] Process finished, next rerun in {run_interval}s")
-            await asyncio.sleep(run_interval)
-    except ClientError as e:
-        logging.error(f"[s3 uploader] terminated process due to client error {e}")
-    except BaseException as e:
-        logging.warning(f"[s3 uploader] terminated process due to exception {e}")
-    finally:
-        s3_client = None
-        session = None
-        return
-
 async def main_procedure(data_dir, tryrun=None, flag_cond=None, run_interval=60, 
-converter_rerun_interval=100, listener_session_runtime=600, s3_processed_audio_dir=None, aws_profile=None):
+listener_session_runtime=600):
 
     raw_audio_dir = os.path.join(data_dir, "raw_audios")
-    processed_audio_dir = os.path.join(data_dir, "processed_audios")
     stream_info_dir = os.path.join(data_dir, "stream_info")
     stream_info_path = os.path.join(stream_info_dir, "stream_info.json")
 
-    for directory in [raw_audio_dir, processed_audio_dir, stream_info_dir]:
+    for directory in [raw_audio_dir, stream_info_dir]:
         os.makedirs(directory, exist_ok=True)
 
     # initiate stream info
@@ -192,21 +75,6 @@ converter_rerun_interval=100, listener_session_runtime=600, s3_processed_audio_d
                 streams = streams[:tryrun]
                 logging.info(f"[main] Try run: {len(streams)} streams")
             tasks = [
-                deploy_converter(
-                    raw_audio_dir, processed_audio_dir, 
-                    run_interval=converter_rerun_interval
-                )
-            ]
-            if s3_processed_audio_dir is not None:
-                tasks += [
-                    s3_upload(
-                        processed_audio_dir, 
-                        s3_processed_audio_dir, 
-                        profile=aws_profile,
-                        run_interval=run_interval,
-                    )
-                ]
-            tasks += [
                 deploy_listener(
                     stream, raw_audio_dir=raw_audio_dir, 
                     session_runtime=listener_session_runtime, 
@@ -228,10 +96,7 @@ if __name__ == "__main__":
         "flag_cond": os.environ.get("FLAG_COND", None),
         "run_interval": os.environ.get("RUN_INTERVAL", 60),
         "tryrun": os.environ.get("TRYRUN", None),
-        "converter_rerun_interval": os.environ.get("CONVERTER_RUN_INTERVAL", 100),
         "listener_session_runtime": os.environ.get("LISTENER_SESSION_RUNTIME", 600),
-        "s3_processed_audio_dir": os.environ.get("S3_PROCESSED_AUDIO_DIR", None),
-        "aws_profile": os.environ.get("AWS_PROFILE", None)
     }
 
     for k, v in run_config.items():

@@ -7,7 +7,8 @@ services:
     volumes:
       - ../data:/data:Z
     env_file:
-      - engine_default.env
+      - ./envs/directories.env
+      - ./envs/engine.env
     environment: 
       - FLAG_COND=kbos
   klax:
@@ -16,7 +17,8 @@ services:
     volumes:
       - ../data:/data:Z
     env_file:
-      - engine_default.env
+      - ./envs/directories.env
+      - ./envs/engine.env
     environment: 
       - FLAG_COND=klax
   db_updator:
@@ -24,11 +26,22 @@ services:
     entrypoint: python /code/database_updator.py
     volumes:
       - ../data:/data:Z
+    env_file:
+      - ./envs/directories.env
     environment: 
       - RERUN=120
     # depends_on: 
     #   - db
     restart: always
+  audio_converter:
+      build: .
+      entrypoint: python /code/audio_converter.py
+      volumes:
+        - ../data:/data:Z
+      environment: 
+        - ./envs/directories.env
+        - ./envs/audio_converter.env
+      restart: always
   # db:
   #   image: mysql:5.7
   #   container_name: mysql
@@ -36,6 +49,7 @@ services:
   #     - ../data/db/:/var/lib/mysql
   #   restart: always
   #   env_file:
-  #       - db_default.env
+  #     - ./envs/directories.env
+  #     - ./envs/db.env
   #   ports:
   #     - "33061:3306"
