@@ -52,6 +52,7 @@ def convert_meta(available_audio_infos, processed_audio_dir, min_silence_len=500
                 if os.path.exists(info_dict['file_path']):
                     raw_audio_file = pydub.AudioSegment.from_mp3(info_dict['file_path'])
                     sub_export_dir = datetime.datetime.strftime(info_dict["end_time"], "%Y-%m-%d-%H") + f"/{info_dict['flag']}"
+                    logging.debug(sub_export_dir)
                     offset_lists = pydub.silence.detect_nonsilent(
                         raw_audio_file,
                         min_silence_len=min_silence_len,
