@@ -116,6 +116,8 @@ def convert_main(data_dir, run_interval=60, min_silence_len=500, silence_thresh=
         ), 
         available_audio_infos_for_processes
     )
+    if len(available_audio_infos) > 0:
+        run_interval = 0
     logging.info(f"[stream converter] Process finished, next rerun in {run_interval}s")
     time.sleep(run_interval)
     return

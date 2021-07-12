@@ -38,8 +38,10 @@ services:
     entrypoint: python /code/audio_converter.py
     volumes:
       - ../data:/data:Z
-    environment: 
+    env_file: 
       - ./envs/directories.env
+    environment: 
+      - RERUN=30
     restart: always
   # db:
   #   image: mysql:5.7
