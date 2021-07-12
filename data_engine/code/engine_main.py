@@ -23,10 +23,25 @@ logging.basicConfig(
      datefmt='%Y-%m-%d %H:%M:%S %Z'
  )
 
-def file_timestamp_beyond_current(filename, current_time=None):
+_timestamp_fmt = "%Y%m%d%H%M%S%f"
+_asyncio_short_waittime = 0.01
+
+def parse_file_name(filename):
+    pieces = filename.rstrip(".mp3").split("-")
+    start_time_stamp = pieces[-2]
+    end_time_stamp = pieces[-1]
+    start_time = datetime.datetime.strptime(start_time_stamp, _timestamp_fmt)
+    end_time = datetime.datetime.strptime(end_time_stamp, _timestamp_fmt)
+    return {
+        "file_name": filename,
+        "start_time_stamp": start_time_stamp,
+        "end_time_stamp": end_time_stamp,
+        "start_time": start_time, 
+        "end_time": end_time
+    }
+
+def file_timestamp_beyond_current(end_time, current_time=None):
     current_time = current_time or datetime.datetime.now()
-    end_time_stamp = filename.rstrip(".mp3").split("-")[-1]
-    end_time = datetime.datetime.strptime(end_time_stamp, "%Y%m%d%H%M%S%f") # takes no keyword argument
     if end_time > current_time:
         return False
     else:
@@ -57,7 +72,7 @@ async def deploy_listener(audio_stream, session_runtime=300, run_interval=60, ra
                 cmd = audio_stream.get_record_cmd(runtime=session_runtime, export_dir=raw_audio_dir)
                 sub_process = subprocess.Popen(cmd, shell=True)
                 pid = sub_process.pid
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(_asyncio_short_waittime)
     except BaseException as e:
         logging.warning(f"[{audio_stream.flag}] Terminate this process due to exception {e}")
         return
@@ -67,39 +82,54 @@ async def deploy_converter(raw_audio_dir, processed_audio_dir, run_interval=60, 
         while True:
             logging.info(f"[stream converter] Converter start")
             current_time = datetime.datetime.now()
-            raw_audio_names = [fname for fname in os.listdir(raw_audio_dir) if file_timestamp_beyond_current(fname, current_time)]
-            raw_audio_paths = [os.path.join(raw_audio_dir, fname) for fname in raw_audio_names]
-            logging.info(f"[stream converter] found {len(raw_audio_names)} files qualified to be converted")
-            for raw_audio_name, raw_audio_path in zip(raw_audio_names, raw_audio_paths):
+            raw_audio_infos = [
+                parse_file_name(fname) 
+                for fname in os.listdir(raw_audio_dir)
+            ]
+            available_audio_infos = [
+                info_dict
+                for info_dict in raw_audio_infos
+                if file_timestamp_beyond_current(info_dict["end_time"], current_time)
+            ]
+            available_fpaths = [
+                os.path.join(raw_audio_dir, info_dict["file_name"]) 
+                for info_dict in available_audio_infos
+            ]
+            logging.info(f"[stream converter] found {len(available_audio_infos)} files qualified to be converted")
+            for info_dict, audio_path in zip(available_audio_infos, available_fpaths):
                 try:
-                    if os.path.exists(raw_audio_path):
-                        raw_audio_file = pydub.AudioSegment.from_mp3(raw_audio_path)
-                        await asyncio.sleep(2)
+                    if os.path.exists(audio_path):
+                        raw_audio_file = pydub.AudioSegment.from_mp3(audio_path)
+                        sub_export_dir = datetime.datetime.strftime(info_dict["end_time"], "%Y-%m-%d-%H-%M-%S")
+                        await asyncio.sleep(_asyncio_short_waittime)
                         offset_lists = pydub.silence.detect_nonsilent(
                             raw_audio_file,
                             min_silence_len=min_silence_len,
                             silence_thresh=silence_thresh
                         )
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(_asyncio_short_waittime)
                         for (start_offset, end_offset) in offset_lists:
                             rec_start_offset = max(start_offset-extend, 0)
                             rec_end_offset = min(end_offset+extend, len(raw_audio_file))
                             chunk = raw_audio_file[rec_start_offset:rec_end_offset]
                             offset_str = f"{rec_start_offset}-{rec_end_offset}"
-                            export_filename = os.path.join(
-                                processed_audio_dir,
-                                raw_audio_name.replace(".mp3", f"-{offset_str}.mp3")
+                            export_filepath = os.path.join(
+                                processed_audio_dir, 
+                                sub_export_dir,
+                                info_dict["file_name"].replace(".mp3", f"-{offset_str}.mp3")
                             )
-                            logging.info(f"[stream converter] converted and exported sound slice {export_filename}")
-                            chunk.export(export_filename, format="mp3")
+                            export_dirname = os.path.dirname(export_filepath)
+                            os.makedirs(export_dirname, exist_ok=True)
+                            logging.info(f"[stream converter] converted and exported sound slice {export_filepath}")
+                            chunk.export(export_filepath, format="mp3")
                 except Exception as e:
                      logging.error(f"[stream converter] Failed to convert due to exception {e}")
                 finally:
                     raw_audio_file = None
                     offset_lists = None
                     chunk = None
-                    os.remove(raw_audio_path)
-                    await asyncio.sleep(0.01)
+                    os.remove(audio_path)
+                    await asyncio.sleep(_asyncio_short_waittime)
             logging.info(f"[stream converter] Process finished, next rerun in {run_interval}s")
             await asyncio.sleep(run_interval)
     except BaseException as e:
@@ -120,7 +150,7 @@ async def s3_upload(processed_audio_dir, s3_processed_audio_dir, profile=None, r
                 parsed_s3_path = urlparse(s3_path)
                 bucket = parsed_s3_path.netloc
                 key = parsed_s3_path.path.lstrip("/")
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(_asyncio_short_waittime)
                 s3_client.upload_file(source_path, bucket, key)
                 logging.info(f"[s3 uploader] uploaded file {fname}")
                 os.remove(source_path)
@@ -157,10 +187,10 @@ converter_rerun_interval=100, listener_session_runtime=600, s3_processed_audio_d
             streams = [AudioStream(item["stream_link"]) for item in stream_info_raw]
             if flag_cond is not None:
                 streams = [item for item in streams if flag_cond in item.flag]
-                logging.warning(f"[main] Filtered flag includes {flag_cond}, total {len(streams)} streams")
+                logging.info(f"[main] Filtered flag includes {flag_cond}, total {len(streams)} streams")
             if tryrun is not None:
                 streams = streams[:tryrun]
-                logging.warning(f"[main] Try run: {len(streams)} streams")
+                logging.info(f"[main] Try run: {len(streams)} streams")
             tasks = [
                 deploy_converter(
                     raw_audio_dir, processed_audio_dir, 
@@ -186,9 +216,9 @@ converter_rerun_interval=100, listener_session_runtime=600, s3_processed_audio_d
             ]
         await asyncio.gather(*tasks)
     except Exception as e:
-        logging.info(f"[main] Terminated due to exception {e}...")
+        logging.warning(f"[main] Terminated due to exception {e}...")
     except BaseException:
-        logging.info(f"[main] Terminated ...")
+        logging.warning(f"[main] Terminated ...")
         os._exit(0)
 
 if __name__ == "__main__":

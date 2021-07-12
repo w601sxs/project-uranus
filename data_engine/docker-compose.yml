@@ -3,14 +3,39 @@ version: '3'
 services:
   kbos:
     build: .
-    entrypoint: /code/main.py
+    entrypoint: python /code/engine_main.py
     volumes:
       - ../data:/data:Z
-      - $HOME/.aws:/root/.aws/:ro
+    env_file:
+      - engine_default.env
     environment: 
-      - DATA_DIR=/data
       - FLAG_COND=kbos
-      - RUN_INTERVAL=60
-      - CONVERTER_RUN_INTERVAL=100
-      - LISTENER_SESSION_RUNTIME=600
-      - S3_PROCESSED_AUDIO_DIR=s3://project-uranus/processed_audios/
+  klax:
+    build: .
+    entrypoint: python /code/engine_main.py
+    volumes:
+      - ../data:/data:Z
+    env_file:
+      - engine_default.env
+    environment: 
+      - FLAG_COND=klax
+  db_updator:
+    build: .
+    entrypoint: python /code/database_updator.py
+    volumes:
+      - ../data:/data:Z
+    environment: 
+      - RERUN=120
+    # depends_on: 
+    #   - db
+    restart: always
+  # db:
+  #   image: mysql:5.7
+  #   container_name: mysql
+  #   volumes:
+  #     - ../data/db/:/var/lib/mysql
+  #   restart: always
+  #   env_file:
+  #       - db_default.env
+  #   ports:
+  #     - "33061:3306"
