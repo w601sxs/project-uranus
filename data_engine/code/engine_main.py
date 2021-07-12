@@ -100,7 +100,7 @@ async def deploy_converter(raw_audio_dir, processed_audio_dir, run_interval=60, 
                 try:
                     if os.path.exists(audio_path):
                         raw_audio_file = pydub.AudioSegment.from_mp3(audio_path)
-                        sub_export_dir = datetime.datetime.strftime(info_dict["end_time"], "%Y-%m-%d-%H-%M-%S")
+                        sub_export_dir = datetime.datetime.strftime(info_dict["end_time"], "%Y-%m-%d-%H")
                         await asyncio.sleep(_asyncio_short_waittime)
                         offset_lists = pydub.silence.detect_nonsilent(
                             raw_audio_file,
