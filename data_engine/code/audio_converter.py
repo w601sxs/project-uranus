@@ -123,7 +123,7 @@ def convert_main(data_dir, run_interval=60, min_silence_len=500, silence_thresh=
 if __name__ == "__main__":
     run_config = {
         "data_dir": os.environ.get("DATA_DIR", "./data"),
-        "run_interval": os.environ.get("RERUN", 60),
+        "run_interval": os.environ.get("RERUN", 0),
         "workers": os.environ.get("WORKERS", os.cpu_count()),
     }
 

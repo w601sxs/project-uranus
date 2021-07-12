@@ -34,14 +34,13 @@ services:
     #   - db
     restart: always
   audio_converter:
-      build: .
-      entrypoint: python /code/audio_converter.py
-      volumes:
-        - ../data:/data:Z
-      environment: 
-        - ./envs/directories.env
-        - ./envs/audio_converter.env
-      restart: always
+    build: .
+    entrypoint: python /code/audio_converter.py
+    volumes:
+      - ../data:/data:Z
+    environment: 
+      - ./envs/directories.env
+    restart: always
   # db:
   #   image: mysql:5.7
   #   container_name: mysql
