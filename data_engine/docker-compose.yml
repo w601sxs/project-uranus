@@ -1,47 +1,54 @@
 version: '3'
 
+# used in AWS deployment
+x-aws-vpc: ${AWS_VPC}
+x-aws-cluster: ${AWS_ECS_CLUSTER}
+
 services:
   kbos:
-    build: ../../data_engine/
+    build: .
     image: kbos_listeners
     entrypoint: python /code/engine_main.py
     volumes:
-      - ../../data:/data:Z
+      - enginedata:/data:Z
     env_file:
       - ./envs/directories.env
       - ./envs/engine.env
     environment: 
       - FLAG_COND=kbos
   klax:
-    build: ../../data_engine/
+    build: .
     image: klax_listeners
     entrypoint: python /code/engine_main.py
     volumes:
-      - ../../data:/data:Z
+      - enginedata:/data:Z
     env_file:
       - ./envs/directories.env
       - ./envs/engine.env
     environment: 
       - FLAG_COND=klax
   db_updator:
-    build: ../../data_engine/
+    build: .
     image: db_updator
     entrypoint: python /code/database_updator.py
     volumes:
-      - ../../data:/data:Z
+      - enginedata:/data:Z
     env_file:
       - ./envs/directories.env
     environment: 
       - RERUN=120
     restart: always
   audio_converter:
-    build: ../../data_engine/
+    build: .
     image: audio_converter
     entrypoint: python /code/audio_converter.py
     volumes:
-      - ../../data:/data:Z
+      - enginedata:/data:Z
     env_file: 
       - ./envs/directories.env
     environment: 
       - RERUN=30
     restart: always
+
+volumes:
+  enginedata:

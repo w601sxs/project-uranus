@@ -134,7 +134,4 @@ data
 tmp
 .metaflow
 *.ipynb
-data_engine/docker-compose.yml
 *setup.sh
-deployment/*
-!deployment/local
