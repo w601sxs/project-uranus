@@ -2,55 +2,46 @@ version: '3'
 
 services:
   kbos:
-    build: .
+    build: ../../data_engine/
+    image: kbos_listeners
     entrypoint: python /code/engine_main.py
     volumes:
-      - ../data:/data:Z
+      - ../../data:/data:Z
     env_file:
       - ./envs/directories.env
       - ./envs/engine.env
     environment: 
       - FLAG_COND=kbos
   klax:
-    build: .
+    build: ../../data_engine/
+    image: klax_listeners
     entrypoint: python /code/engine_main.py
     volumes:
-      - ../data:/data:Z
+      - ../../data:/data:Z
     env_file:
       - ./envs/directories.env
       - ./envs/engine.env
     environment: 
       - FLAG_COND=klax
   db_updator:
-    build: .
+    build: ../../data_engine/
+    image: db_updator
     entrypoint: python /code/database_updator.py
     volumes:
-      - ../data:/data:Z
+      - ../../data:/data:Z
     env_file:
       - ./envs/directories.env
     environment: 
       - RERUN=120
-    # depends_on: 
-    #   - db
     restart: always
   audio_converter:
-    build: .
+    build: ../../data_engine/
+    image: audio_converter
     entrypoint: python /code/audio_converter.py
     volumes:
-      - ../data:/data:Z
+      - ../../data:/data:Z
     env_file: 
       - ./envs/directories.env
     environment: 
       - RERUN=30
     restart: always
-  # db:
-  #   image: mysql:5.7
-  #   container_name: mysql
-  #   volumes:
-  #     - ../data/db/:/var/lib/mysql
-  #   restart: always
-  #   env_file:
-  #     - ./envs/directories.env
-  #     - ./envs/db.env
-  #   ports:
-  #     - "33061:3306"
