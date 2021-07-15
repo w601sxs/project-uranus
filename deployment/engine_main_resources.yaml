@@ -75,7 +75,7 @@ Resources:
       ServiceRole: !Ref DataEngineImageBuildRoleArn
       Source:
         Type: CODEPIPELINE
-        BuildSpec: data_engine/imagebuild.yml
+        BuildSpec: data_engine/engine_codebuild_imagebuild.yml
 
   # Code Build to Extract Cfn
   ExtractBuild:
@@ -93,7 +93,7 @@ Resources:
       ServiceRole: !Ref DataEngineExtractBuildRoleArn
       Source:
         Type: CODEPIPELINE
-        BuildSpec: data_engine/extractbuild.yml
+        BuildSpec: data_engine/engine_codebuild_extractbuild.yml
 
   # Code Pipeline
   Pipeline:
