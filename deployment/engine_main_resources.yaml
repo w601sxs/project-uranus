@@ -1,0 +1,252 @@
+## Modified from git repo vpc setup on https://github.com/aws-containers/demo-app-for-docker-compose
+## Author: ollypom(github)
+## Editor: ruyyi0323@gmail.com
+
+## Notes
+# replace some of the attributes with shorthand version
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Automated Data Engine Deploy Flow
+
+Parameters:
+  ProjectResourcePrefix:
+    Description: Name of the not yet created Application CFN Stack
+    Type: String
+    Default: project-uranus
+    AllowedPattern: (^[a-z][a-z0-9-]+$)
+  DataEngineResourcePrefix:
+    Description: Name of the not yet created Application CFN Stack
+    Type: String
+    Default: data-engine
+    AllowedPattern: (^[a-z][a-z0-9-]+$)
+  DataEngineImageBuildRoleArn:
+    Description: ARN of data engine image build role
+    Type: String
+  DataEngineExtractBuildRoleArn:
+    Description: ARN of data engine extract build role
+    Type: String
+  ProjectPipelineRoleArn:
+    Description: ARN of pipeline role
+    Type: String
+  EngineRunVPC:
+    Description: Name of VPC that data engine will run on
+    Type: AWS::EC2::VPC::Id
+  EngineRunLoadbalancer:
+    Description: ARN of existing Application Loadbalancer 
+    Type: String
+  EngineRunECSCluster:
+    Description: Name of existing ECS Cluster
+    Type: String
+
+Resources:
+
+  DataEngineECRReoo: 
+    Type: AWS::ECR::Repository
+    Properties: 
+      ImageScanningConfiguration: 
+        ScanOnPush: "true"
+      RepositoryName: !Sub "${DataEngineResourcePrefix}-main-ecr" 
+
+  AssetBucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub "${ProjectResourcePrefix}-asset-bucket" 
+      VersioningConfiguration:
+        Status: Enabled
+
+  DataBucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub "${ProjectResourcePrefix}-data-bucket" 
+
+  # CodeBuild to Build the Container Image
+  ImageBuild:
+    Type: AWS::CodeBuild::Project
+    Properties: 
+      Name: !Sub ${DataEngineResourcePrefix}-imagebuild
+      Artifacts:
+        Type: CODEPIPELINE
+        EncryptionDisabled: false
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole: !Ref DataEngineImageBuildRoleArn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: data_engine/imagebuild.yml
+
+  # Code Build to Extract Cfn
+  ExtractBuild:
+    Type: AWS::CodeBuild::Project
+    Properties: 
+      Name: !Sub ${DataEngineResourcePrefix}-extractbuild
+      Artifacts:
+        Type: CODEPIPELINE
+        EncryptionDisabled: false
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole: !Ref DataEngineExtractBuildRoleArn
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: data_engine/extractbuild.yml
+
+  # Code Pipeline
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Type: S3
+        Location: !Ref AssetBucket
+      RoleArn: !Ref ProjectPipelineRoleArn
+      Stages:
+        - Name: S3Source
+          Actions:
+            - Name: TemplateSource
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: S3
+                Version: "1"
+              Configuration:
+                S3Bucket: !Ref "AssetBucket"
+                S3ObjectKey: "code_packs/data_engine.zip"
+              OutputArtifacts:
+                - Name: Source
+        - Name: Build
+          Actions:
+            - Name: BuildContainerImage
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName: !Ref ImageBuild
+                EnvironmentVariables: !Sub |
+                  [
+                    {
+                      "name": "AWS_ACCOUNT_ID",
+                      "value": "${AWS::AccountId}",
+                      "type": "PLAINTEXT"
+                    },
+                    {
+                      "name": "IMAGE_URI",
+                      "value": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DataEngineECRReoo}",
+                      "type": "PLAINTEXT"
+                    },
+                    {
+                      "name": "IMAGE_TAG",
+                      "value": "#{codepipeline.PipelineExecutionId}",
+                      "type": "PLAINTEXT"
+                    },
+                    {
+                      "name": "FORCE_MANUALPUSH",
+                      "value": "True",
+                      "type": "PLAINTEXT"
+                    }
+                  ]
+              InputArtifacts:
+                - Name: Source
+              OutputArtifacts:
+                - Name: ImageBuild
+        - Name: Compose2Cloudformation
+          Actions:
+            - Name: ExtractCFN
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName: !Ref ExtractBuild
+                EnvironmentVariables: !Sub |
+                  [
+                    {
+                      "name": "AWS_ACCOUNT_ID",
+                      "value": "${AWS::AccountId}",
+                      "type": "PLAINTEXT"
+                    },
+                    {
+                      "name": "IMAGE_URI",
+                      "value": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DataEngineECRReoo}",
+                      "type": "PLAINTEXT"
+                    },
+                    {
+                      "name": "IMAGE_TAG",
+                      "value": "#{codepipeline.PipelineExecutionId}",
+                      "type": "PLAINTEXT"
+                    },
+                    {
+                      "name": "AWS_ECS_CLUSTER",
+                      "value": "${EngineRunECSCluster}",
+                      "type": "PLAINTEXT"
+                    },
+                    {
+                      "name": "AWS_VPC",
+                      "value": "${EngineRunVPC}",
+                      "type": "PLAINTEXT"
+                    },
+                    {
+                      "name": "AWS_ELB",
+                      "value": "${EngineRunLoadbalancer}",
+                      "type": "PLAINTEXT"
+                    }
+                  ]
+              InputArtifacts:
+                - Name: Source
+              OutputArtifacts:
+                - Name: ExtractedCfn
+        - Name: DeployStage
+          Actions:
+            - Name: CreateChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              InputArtifacts:
+                - Name: ExtractedCfn
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                RoleArn: !Ref DataEngineExtractBuildRoleArn
+                StackName: !Sub ${ProjectResourcePrefix}-dataengine-ecs
+                ChangeSetName: !Sub ${ProjectResourcePrefix}-dataengine-ecs-changeset
+                TemplatePath: "ExtractedCfn::cloudformation.yml"
+                Capabilities: CAPABILITY_IAM
+              RunOrder: 1
+            - Name: ApproveChangeSet
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: "1"
+              RunOrder: 2
+            - Name: ExecuteChangeSet
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                StackName: !Sub ${ProjectResourcePrefix}-dataengine-ecs
+                ChangeSetName: !Sub ${ProjectResourcePrefix}-dataengine-ecs-changeset
+                RoleArn: !Ref DataEngineExtractBuildRoleArn
+              RunOrder: 3  
+             
+# Outputs:
+#   DataEngineECRReoo:
+#     Description: ECR Repository to store the Demo App Image
+#     Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DataEngineECRReoo}"
+#   DataEngineECRReooName:
+#     Description: ECR Repository to store the Demo App Image
+#     Value: !Ref DataEngineECRReoo
+#   S3BucketName:
+#     Description: S3 Bucket to store Application Source Code
+#     Value: !Ref AssetBucket
+

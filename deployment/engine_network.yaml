@@ -1,16 +1,42 @@
+## Modified from git repo vpc setup on https://github.com/aws-containers/demo-app-for-docker-compose
+## Author: ollypom(github)
+## Editor: ruyyi0323@gmail.com
+
+## Notes
+# At least 2 subnets in 2 different availablility zone should be specified, the following is the minimal requirement
+
 AWSTemplateFormatVersion: '2010-09-09'
-Description: ECS Cluster in a minimal setup VPC
+Description: ECS Cluster in a new VPC
 
 Parameters:
+  DataEngineResourcePrefix:
+    Description: Resource Name Prefix
+    Type: String
+    Default: data-engine
   VpcCidr:
     Description: CIDR Range for the VPC
     Type: String
     Default: 10.0.0.0/16
     AllowedPattern: ([0-9]{1,3}\.){3}[0-9]{1,3}($|/(16|24))
-  PublicSubnetCidr:
-    Description: CIDR Range for public subnet
+  PublicSubnetOneCidr:
+    Description: CIDR Range for public subnet one
     Type: String
     Default: 10.0.1.0/24
+    AllowedPattern: ([0-9]{1,3}\.){3}[0-9]{1,3}($|/24)
+  PublicSubnetTwoCidr:
+    Description: CIDR Range for public subnet two
+    Type: String
+    Default: 10.0.2.0/24
+    AllowedPattern: ([0-9]{1,3}\.){3}[0-9]{1,3}($|/24)
+  PrivateSubnetOneCidr:
+    Description: CIDR Range for private subnet one
+    Type: String
+    Default: 10.0.3.0/24
+    AllowedPattern: ([0-9]{1,3}\.){3}[0-9]{1,3}($|/24)
+  PrivateSubnetTwoCidr:
+    Description: CIDR Range for private subnet two
+    Type: String
+    Default: 10.0.4.0/24
     AllowedPattern: ([0-9]{1,3}\.){3}[0-9]{1,3}($|/24)
 
 Resources:
@@ -23,7 +49,7 @@ Resources:
       InstanceTenancy: default
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}'
+          Value: !Sub '${DataEngineResourcePrefix}-vpc'
 
   PublicSubnetOne:
     Type: AWS::EC2::Subnet
@@ -39,8 +65,27 @@ Resources:
         - Key: Name
           Value: !Join
             - "-"
-            - - !Sub '${AWS::StackName}'
+            - - !Sub '${DataEngineResourcePrefix}'
               - 'public-1'
+        - Key: subnet-type
+          Value: 'Public'
+
+  PublicSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+         Fn::Select:
+         - 1
+         - Fn::GetAZs: {Ref: 'AWS::Region'}
+      VpcId: !Ref 'VPC'
+      CidrBlock: !Ref PublicSubnetTwoCidr
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Join
+            - "-"
+            - - !Sub '${DataEngineResourcePrefix}'
+              - 'public-2'
         - Key: subnet-type
           Value: 'Public'
 
@@ -53,7 +98,7 @@ Resources:
         - Key: Name
           Value: !Join
             - "-"
-            - - !Sub '${AWS::StackName}'
+            - - !Sub '${DataEngineResourcePrefix}'
               - 'public-routetable'
 
   PublicSubnetOneRouteTableAssociation:
@@ -64,6 +109,14 @@ Resources:
       SubnetId:
         Ref: PublicSubnetOne
 
+  PublicSubnetTwoRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable
+      SubnetId:
+        Ref: PublicSubnetTwo
+
   PublicInternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
@@ -71,7 +124,7 @@ Resources:
       - Key: Name
         Value: !Join
           - "-"
-          - - !Sub '${AWS::StackName}'
+          - - !Sub '${DataEngineResourcePrefix}'
             - 'internet-gateway'
 
   PublicInternetGatewayAssociation:
@@ -97,7 +150,7 @@ Resources:
         - Key: Name
           Value: !Join
             - "-"
-            - - !Sub '${AWS::StackName}'
+            - - !Sub '${DataEngineResourcePrefix}'
               - 'nat-gw-eip'
 
   PublicNatGW:
@@ -113,7 +166,7 @@ Resources:
         - Key: Name
           Value: !Join
             - "-"
-            - - !Sub '${AWS::StackName}'
+            - - !Sub '${DataEngineResourcePrefix}'
               - 'nat-gw'
 
   PrivateSubnetOne:
@@ -129,8 +182,26 @@ Resources:
         - Key: Name
           Value: !Join
             - "-"
-            - - !Sub '${AWS::StackName}'
+            - - !Sub '${DataEngineResourcePrefix}'
               - 'private-1'
+        - Key: subnet-type
+          Value: 'Private'
+
+  PrivateSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+         Fn::Select:
+         - 1
+         - Fn::GetAZs: {Ref: 'AWS::Region'}
+      VpcId: !Ref 'VPC'
+      CidrBlock: !Ref PrivateSubnetTwoCidr
+      Tags:
+        - Key: Name
+          Value: !Join
+            - "-"
+            - - !Sub '${DataEngineResourcePrefix}'
+              - 'private-2'
         - Key: subnet-type
           Value: 'Private'
 
@@ -143,7 +214,7 @@ Resources:
         - Key: Name
           Value: !Join
             - "-"
-            - - !Sub '${AWS::StackName}'
+            - - !Sub '${DataEngineResourcePrefix}'
               - 'private-routetable'
 
   PrivateSubnetDefaultRoute:
@@ -163,8 +234,16 @@ Resources:
       SubnetId:
         Ref: PrivateSubnetOne
 
-  # Security Group for DataEngine
-  DataEngineSecurityGroup:
+  PrivateSubnetTwoRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PrivateRouteTable
+      SubnetId:
+        Ref: PrivateSubnetTwo
+
+  # Security Group for Data Engine
+  SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow Access to Web Port from anywhere
@@ -176,14 +255,14 @@ Resources:
       VpcId: !Ref VPC
 
   # Application Load Balancer
-  DataEngineLoadbalancer:
+  Loadbalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties: 
-      Name: !Sub "${AWS::StackName}-alb"
+      Name: !Sub "${DataEngineResourcePrefix}-alb"
       Type: "application"
       Scheme: "internet-facing"
       SecurityGroups: 
-        - !Ref DataEngineSecurityGroup
+        - !Ref SecurityGroup
       Subnets: 
         - !Ref PublicSubnetOne
         - !Ref PublicSubnetTwo
@@ -192,7 +271,7 @@ Resources:
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Join ["-",[!Sub '${AWS::StackName}', 'cluster']]
+      ClusterName: !Join ["-",[!Sub '${DataEngineResourcePrefix}', 'cluster']]
       ClusterSettings:
         - Name: containerInsights
           Value: enabled
@@ -228,11 +307,11 @@ Outputs:
     Description: The name of the ECS cluster
     Value: !Ref 'ECSCluster'
   LoadbalancerId:
-    Description: The DataEngine App Loadbalancer Arn
-    Value: !Ref 'DataEngineLoadbalancer'
+    Description: The Data Engine App Loadbalancer Arn
+    Value: !Ref 'Loadbalancer'
   LoadbalancerEndpoint:
-    Description: The DataEngine App Loadbalancer Endpoint
+    Description: The App Loadbalancer Endpoint
     Value: !Join
       - ""
       - - "http://"
-        - !GetAtt 'DataEngineLoadbalancer.DNSName'
+        - !GetAtt 'Loadbalancer.DNSName'
