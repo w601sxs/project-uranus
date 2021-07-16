@@ -72,7 +72,7 @@ Resources:
               - s3:Abort*
             Effect: Allow
             Resource:
-              - !Sub arn:aws:s3:::${DataEngineResourcePrefix}*
+              - !Sub arn:aws:s3:::${ProjectResourcePrefix}*
           - Action:
               - codebuild:StartBuild
               - codebuild:BatchGetBuilds
@@ -113,7 +113,7 @@ Resources:
               - s3:PutObject*
             Effect: Allow
             Resource:
-              - !Sub arn:aws:s3:::${DataEngineResourcePrefix}*
+              - !Sub arn:aws:s3:::${ProjectResourcePrefix}*
           - Action:
               - ecr:GetAuthorizationToken
             Effect: Allow
@@ -127,7 +127,7 @@ Resources:
               - ecr:UploadLayerPart
             Effect: Allow
             Resource:
-              - !Sub arn:aws:ecr:*:${AWS::AccountId}:repository/${DataEngineResourcePrefix}
+              - !Sub arn:aws:ecr:*:${AWS::AccountId}:repository/${DataEngineResourcePrefix}*
 
   DataEngineExtractBuildRole:
     Type: AWS::IAM::Role
@@ -166,9 +166,12 @@ Resources:
               - s3:GetBucket*
               - s3:List*
               - s3:PutObject*
+              - s3:DeleteObject
+              - s3:ListMultipartUploadParts
+              - s3:AbortMultipartUpload
             Effect: Allow
             Resource:
-              - !Sub arn:aws:s3:::${DataEngineResourcePrefix}*
+              - !Sub arn:aws:s3:::${ProjectResourcePrefix}*
 
   DataEngineDockerComposeRolePolicy:
     Type: AWS::IAM::ManagedPolicy
@@ -238,6 +241,19 @@ Resources:
             Effect: Allow
             Resource:
               - "*"
+
+  DataEngineECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: [ecs-tasks.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
              
 Outputs:
   PipelineRoleArn:
@@ -249,5 +265,8 @@ Outputs:
   DataEngineExtractBuildRoleArn:
     Description: Data Engine Extract Build Role ARN
     Value: !GetAtt DataEngineExtractBuildRole.Arn
+  DataEngineECSTaskExecutionRoleArn:
+    Description: Data Engine ECS Role ARN
+    Value: !GetAtt DataEngineECSTaskExecutionRole.Arn
 
 

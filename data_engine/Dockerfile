@@ -1,4 +1,4 @@
-FROM python:3.8-slim AS builder
+FROM public.ecr.aws/bitnami/python:3.8.7-prod AS builder
 
 LABEL maintainer="ruyyi0323@gmail.com"
 LABEL version="v0.1"

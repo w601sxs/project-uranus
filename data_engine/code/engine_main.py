@@ -69,8 +69,13 @@ listener_session_runtime=600):
             logging.info("[main] Successfully loaded stream info file")
             streams = [AudioStream(item["stream_link"]) for item in stream_info_raw]
             if flag_cond is not None:
-                streams = [item for item in streams if flag_cond in item.flag]
-                logging.info(f"[main] Filtered flag includes {flag_cond}, total {len(streams)} streams")
+                flag_cond = flag_cond.split(",")
+                logging.info(f"[main] Detected {len(flag_cond)} flag conditions")
+                streams = [
+                    item for item in streams 
+                    if any(flag_cond_meta in item.flag for flag_cond_meta in flag_cond)
+                ]
+                logging.info(f"[main] Filtered flag includes [{flag_cond}], total {len(streams)} streams")
             if tryrun is not None:
                 streams = streams[:tryrun]
                 logging.info(f"[main] Try run: {len(streams)} streams")

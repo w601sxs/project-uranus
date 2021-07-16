@@ -1,13 +1,10 @@
-version: '3'
-
 # used in AWS deployment
-x-aws-vpc: ${AWS_VPC}
 x-aws-cluster: ${AWS_ECS_CLUSTER}
 
 services:
-  kbos:
+  audio_fetcher:
     build: .
-    image: kbos_listeners
+    image: ${IMAGE_URI:-klax_listeners}:${IMAGE_TAG:-latest}
     entrypoint: python /code/engine_main.py
     volumes:
       - enginedata:/data:Z
@@ -15,32 +12,10 @@ services:
       - ./envs/directories.env
       - ./envs/engine.env
     environment: 
-      - FLAG_COND=kbos
-  klax:
-    build: .
-    image: klax_listeners
-    entrypoint: python /code/engine_main.py
-    volumes:
-      - enginedata:/data:Z
-    env_file:
-      - ./envs/directories.env
-      - ./envs/engine.env
-    environment: 
-      - FLAG_COND=klax
-  db_updator:
-    build: .
-    image: db_updator
-    entrypoint: python /code/database_updator.py
-    volumes:
-      - enginedata:/data:Z
-    env_file:
-      - ./envs/directories.env
-    environment: 
-      - RERUN=120
-    restart: always
+      - FLAG_COND=klax,kbos
   audio_converter:
     build: .
-    image: audio_converter
+    image: ${IMAGE_URI:-audio-converter}:${IMAGE_TAG:-latest}
     entrypoint: python /code/audio_converter.py
     volumes:
       - enginedata:/data:Z
